@@ -1,0 +1,238 @@
+---
+title: "Assignment 3"
+author: "Muhammad Ahmad, 301297154"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+# Instructions
+
+Same as last week (make sure to change author name and SID number). 
+
+## Question 1
+
+### Question
+
+Read in the csv file posted on canvas `HCMST2017.csv` as a tibble using the `read_csv` function previously discussed. This data is from a US nationally representative survey *How Couples Meet and Stay Together 2017*. The csv file you will work with was created from the raw data files available [here](https://data.stanford.edu/hcmst2017#download-data). For this assignment, you will not need to download any additional data, but can get more background about the study if you need to. 
+
+Once you read in the data, investigate the structure of the data. Describe what you see in the data in a few sentences in terms of variables, number of observations or whatever elements you think are important to note. 
+
+
+
+### Answer 
+```{r}
+library("tidyverse")
+library("dplyr")
+setwd("C:/Users/Muhammad/R-projects 387")
+relationships <-read_csv("HCMST2017.csv")
+str(relationships)
+
+##There are 3510 observations and 31 variables. The variables in the dataset define different charaterstics of an individual which is repersented by case id,these varibles includes characterstics such as age, weight, race, gender and etc
+```
+```{r}
+rel66<- select(relationships, weight, age, hh_income)
+
+meanf <- function(x){
+return (sum(x) / length(x))
+}
+
+sCov <- function(x,y){
+return (sum((x - meanf(x)) * (y - meanf(y))) / (length(x) - 1))
+}
+
+
+cov_matrix <- function(data){
+  
+Mat <- matrix(nrow=ncol(data),ncol=ncol(data))
+for(i in 1:ncol(data)){
+  for (j in i:ncol(data)){
+    Mat[i,j]=sCov(data[,i],data[,j])
+    
+  }
+}
+ return (Mat)
+}
+
+
+cov_matrix(rel66)
+
+```
+
+## Question 2
+
+### Question
+
+From the data you read in as part of Question 1, use a data manipulation function discussed in lecture that allows us to just look at specific observations in the data. You do not need to comment on the results, but just write and run the function that would allow you to focus on the following groups of respondents 
+
+1. Are married
+2. Are not married but have a partner
+3. Met their partner online
+4. Are older than 20 but younger than 25 and married 
+5. Are gay or bisexual males who have been with their partners more than 5 years
+
+### Answer
+```{r}
+rel1 <- filter(relationships, married==1)
+rel2 <- filter(relationships, married==0 & partner_current==1)
+rel3 <- filter(relationships, where_met_partner=="Met partner online")
+rel4 <- filter(relationships, age>20 & age<25 & married==1)
+rel5 <- filter(relationships, sexual_orientation!="Hetrosexual" & relationship_duration_years>5)
+```
+## Question 3
+
+### Question
+
+Another useful dplyr filtering helper is `between()`. What does it do? For the fourth criteria in the previous question, use `between()` in a command and also write the equivalent command using only operators (`>`, `<`, `>=`, `<=`, `==`, `!=` )
+
+### Answer
+```{r}
+rel4 <- filter(relationships, age>20 & age<25 & married==1)
+rel6 <- filter(relationships, between(age,20,24.99) & married==1)
+##between() function gives the value of variables between given values
+```
+
+## Question 4
+
+### Question
+
+Your data has seperate variables for the number of children in certain age categories (0 to 1, 2 to 5, 6 to 12, 13 to 17, and over 18). Create new variables measuring the total number of children under 17 and the total number of children under 5. 
+
+### Answer
+```{r}
+
+rel7<-mutate(relationships, children_count=(children_0to1 + children_2to5 + children_6to12+ children_13to17))
+
+rel8<-mutate(relationships, children_5count=(children_0to1 + children_2to5))
+```
+
+
+## Question 5
+
+### Question
+
+Compare your new variable counting the children under 18 with `age` using a ggplot scatterplot allowing for different colors for those with a partner and those without a partner. Comment on your graph as to what information is communicated. Note how you think the graph could be improved (don't have to improve in this question) to be more informative. 
+
+### Answer
+```{r}
+ggplot(data=rel7) +
+geom_point(mapping = aes(x = age, y = children_count, color = partner_current))
+```
+## Question 6
+
+### Question
+
+Let's further investigate the relationship between age and children in the house for our survey respondents. Use the `group_by` and `summarize()` function to obtain a dataset that captures the average number of children under 18 for each combination of age and partnership status. Then, produce a scatter plot with each point representing the average number of children for each age value and partnership status with the size of the dot reflecting the number of observations. In other words, there should be one point for those with a parther and age 25 representing the average number of children under 18; one point for those without a partner and age 25; one point for those with a partner and age 26; etc... For this question, do each step separately (do not use the pipe function `%>%`, yet)
+
+
+### Answer
+```{r}
+rel9 <- group_by(rel7, age, partner_current)
+
+rel10 <- summarize(rel9, avg_children= mean(children_count, na.rm = TRUE), count=n())
+
+ggplot(data=rel10)+
+geom_point(mapping = aes(x=age ,y=avg_children, size=count, color=partner_current ))
+```
+
+## Question 7
+
+### Question 
+
+Next, we are interested in the relationship between age and average number of children under 18 in the household by sexual orientation *only* for those individuals who have a current partner (`partner_current==1`). 
+
+Using the pipe function, write one block of code that will accomplish the following: 
+1. filter the data to keep only observations with a current partner
+2. group the data by age and sexual orientation
+3. summarize the data to obtain the average number of kids under 18 for each combination of age and sexual orientation
+4. create a scatterplot where each point is the average kids under 18 for a particular age using different colors for the categories of sexual orientation, and where the size of each scatter point reflects the number of observations that underlie the average. Also overlay a smooth line without stadard error shading for each sexual orientation category. 
+
+Describe what you learned from this exploratory data analysis about the relationship between number of children in the house, age, and sexual orientation. 
+
+### Answer
+```{r}
+rel7 %>%
+  filter(partner_current==1) %>%
+    group_by(age,sexual_orientation)%>%
+    summarize(avg_children= mean(children_count, na.rm = TRUE), count=n())%>%
+   ggplot(mapping = aes(x=age ,y=avg_children, size=count, color=sexual_orientation))+
+geom_point()+
+geom_smooth(se=FALSE)
+```
+#Hetrosexual and Bisexual have highest number of average children under 18, peaked at around early 30s. Homosexual couples have highest under 18 children average at early 40s. On average Homosexual couples have less children compared to hetrosxual and bisexual couples.   
+
+## Question 8
+
+### Question
+
+As efficiently as possible with your code (i.e. use pipes %>%), investigate the relationship between average relationship quality and age for those respondents with a current partner. Highlight whether this varies by the education category of the recipient using different colors. Note that you are going to want to create/assign an integer scale for relationship quality from the categorical variable so that you can quantify a quality average. 
+
+Comment on your graph and what it tells you about relationship quality, age, and education for respondents in a partnership. 
+
+### Answer
+```{r}
+relationships %>%
+  filter(partner_current==1) %>%
+  mutate(rel_quality=case_when(
+    relationship_quality=="Excellent"~3,
+    relationship_quality=="Good"~2,
+    relationship_quality=="Fair"~1
+  ))%>%
+  group_by(age,educ)%>%
+  summarize(avg_rel_quality=mean(rel_quality, na.rm=TRUE), count=n())%>%
+ ggplot(mapping = aes(x=age ,y=avg_rel_quality, size=count, color= educ))+
+geom_point()+
+geom_smooth(se=FALSE)
+```
+#It appears that on average the relationship quality increases with level of education attatined and on average people tend to have better quality of relationship with age.
+
+## Question 9
+
+### Question
+
+Do some exploratory data analysis of your own! Create three plots that help you learn more about the data and comment on each. **There are so many ways to look at this data, no two assignments in the class should have any overlap on the graphs or comments for this question**. Make these plots and their accompannying description as nice as you can (as if you were turning in a report for a boss at a new job). The only rules are: 
+
+1. No plots with age on the horizontal axis (since we explored this above)
+2. Each plot has to look at the data in a different way, no slight modifications (e.g. adding colors or changing size of marker labels)
+3. Use the data maniputlation functions we have learned in class or above in this assignment (`filter`, `select`, `mutate`, `group_by`, `summarize`). You don't have to use all of these for each visualization, but should use each of these at least once across your three contributions. 
+4. Provide a clearly written paragraph under each plot explaining what you did and what you learned from your visualization. 
+
+**The top 5 most beautiful, clear, and original contributions will be selected and the authors will receive an extra two assignment points.**
+
+### Answer
+```{r}
+#This is to investigate effects of income on relationship quality among different sexual orientations 
+relationships %>%
+  filter(partner_current==1) %>%
+  mutate(rel_quality=case_when(
+    relationship_quality=="Excellent"~3,
+    relationship_quality=="Good"~2,
+    relationship_quality=="Fair"~1
+  ))%>%
+  group_by(hh_income,sexual_orientation)%>%
+  summarize(avg_rel_quality=mean(rel_quality, na.rm=TRUE), count=n())%>%
+ ggplot(mapping = aes(x=hh_income ,y=avg_rel_quality, size=count, color= sexual_orientation))+
+geom_point()+
+geom_smooth(se=FALSE)
+#Supprisingly, the graphs show that relationships between household income and relationship quality remains the approximatelty same with slight increase in quality of relationship quality for hetrosexual and homosexuals. Bisexual doesn't seem to have a general trend with changes in income. 
+```
+```{r}
+#Wage differential amnong ethnicities or races
+relationships %>%
+  
+ggplot(mapping = aes(y=hh_income, x=race, color= educ))+
+geom_boxplot()
+
+#The plot shows that hispanic and black ethnicities with bachelors have lower median household income as compared to whites and others, however the variation in household income seems to be highest among white ethnicity. In group of people with high school education, white people have higher median house hold income . Hispanics and whites earn the same median household income and higher median income than others when education attained is less than highschool.
+```
+
+```{r}
+#How does  political affiliation vary with relationships 
+relationships %>%
+ggplot(aes(pol_affiliation))+
+geom_bar(aes(fill = educ))
+#More people with college and bachelor education have affiliation with democratic party , however I suspect these results may vary depending on how and where the sample is accumulated
+```
+
+
+
